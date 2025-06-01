@@ -1,0 +1,346 @@
+<!DOCTYPE HTML>
+<!--
+	Solid State by HTML5 UP
+	html5up.net | @ajlkn
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html>
+	<head>
+		<title>Pythonanywhere Project 2025</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0v4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<!-- Page Wrapper -->
+			<div id="page-wrapper">
+
+				<!-- Header -->
+					<header id="header" class="alt">
+						<ul class="icons">
+							<li><a href="https://www.linkedin.com/in/noemi-m-b122084/" class="icon" target="_blank"><i class="fa-brands fa-linkedin-in"></i></a></li>
+							<li><a href="https://github.com/NoemiMSg" class="icon brands fa-github" target="_blank"><span class="label">Github</span></a></li>
+							<li><a href="mailto:noemi.sato@gmail.com" class="icon brand fa-envelope" ><span class="label">Email Me</span></a></li>
+						</ul>
+						<nav>
+							<a href="#menu">Menu</a>
+						</nav>
+					</header>
+
+				<!-- Menu -->
+					<nav id="menu">
+						<div class="inner">
+							<h2>Menu</h2>
+							<ul class="links">
+								<li><a href="index.html">Home</a></li>
+								<li><a href="projects.html">Projects</a></li>
+                                <li><a href="documents.html">Documents</a></li>
+                            </ul>
+							<a href="#" class="close">Close</a>
+						</div>
+					</nav>
+
+				<!-- Wrapper -->
+					<section id="wrapper">
+						<header>
+							<div class="inner">
+								<h2>Pythonanywhere Project</h2>
+								<p>A simple database-backed Flask website on PythonAnywhere</p>
+							</div>
+						</header>
+
+						<!-- Content -->
+							<div class="wrapper">
+								<div class="inner">
+
+									<section>
+										<h3 class="major">Code</h3>
+										<p>This project was a beginner's tutorial to using <b>Python</b> and <b>Flask</b>.<br/>The main goal of the tutorial was to understand the design and use of a <b>database-backed webapp</b> that featured a properly set login page, and the capability of allowing <i><b>timestamp</b></i> and <i><b>username</b></i> inclusive comment posting for logged in users.
+									    <br/><br/>You can visit the site at:<br/><a href="https://noemim.pythonanywhere.com/">NoemiM PythonAnywhere</a>.</p>
+										
+                                        <p>The way the code is organized is not the best practice, nor advisable in a bigger project.<br/>Since this was a beginner's tutorial, and a simple webapp, the code was mostly separated into a principal application file, and all the HTML files.<br/>Below, you can check the code for the <b>flask_app.py</b> file and the <b>main_page.html</b> file. </p>
+                                        <h3 class="major">Notes:</h3>
+                                        <li>Apart from the login page presented on the tutorial, I also added the features of update password and sign up pages.</li><li>I changed the color and style used on the tutorial to brighter colours.</li><li>Finally, I modified the navigation bar to contain the link to my LinkedIn account, using an icon from <a href="https://fontawesome.com/icons?d=gallery">FontAwesome</a>.</li></p>
+                                        <h4>flask_app.py</h4>
+										<pre><code>from datetime import datetime
+from flask import Flask, redirect, render_template, request, url_for, flash
+from flask_login import current_user, login_required, login_user, LoginManager, logout_user, UserMixin
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import check_password_hash, generate_password_hash
+
+
+app = Flask(__name__)
+app.config["DEBUG"] = True
+
+
+SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{hostname}/{databasename}".format(
+    username="NoemiM",
+    password="MyDb2025Ql",
+    hostname="NoemiM.mysql.pythonanywhere-services.com",
+    databasename="NoemiM$comments",
+)
+app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
+app.config["SQLALCHEMY_POOL_RECYCLE"] = 299
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+
+
+app.secret_key = "$Secretos/De/La/Vida/2025*"
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+
+class User(UserMixin, db.Model):
+
+    __tablename__ = "users"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(128))
+    password_hash = db.Column(db.String(128))
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def get_id(self):
+        return self.username
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.filter_by(username=user_id).first()
+
+
+class Comment(db.Model):
+
+    __tablename__ = "comments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.String(4096))
+    posted = db.Column(db.DateTime, default=datetime.now)
+    commenter_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    commenter = db.relationship('User', foreign_keys=commenter_id)
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+
+    if request.method == "GET":
+        return render_template("main_page.html", comments=Comment.query.all())
+
+    if not current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    comment = Comment(content=request.form["contents"], commenter=current_user)
+    db.session.add(comment)
+    db.session.commit()
+    return redirect(url_for('index'))
+
+
+@app.route("/signup/", methods=["GET", "POST"])
+def signup():
+    if request.method == "GET":
+        return render_template("signup_page.html", error=None)
+
+    username = request.form["username"]
+    password = request.form["password"]
+    confirm_password = request.form["confirm_password"]
+
+    if password != confirm_password:
+        error = "Passwords do not match."
+        return render_template("signup_page.html", error=error)
+
+    existing_user = load_user(username)
+    if existing_user:
+        error = "Username already taken."
+        return render_template("signup_page.html", error=error)
+
+    new_user = User(
+        username=username,
+        password_hash=generate_password_hash(password)
+    )
+    db.session.add(new_user)
+    db.session.commit()
+
+    login_user(new_user)
+    return redirect(url_for('index'))
+
+@app.route("/change_password/", methods=["GET", "POST"])
+@login_required
+def change_password():
+    if request.method == "GET":
+        return render_template("change_password.html", error=None)
+
+    current_password = request.form["current_password"]
+    new_password = request.form["new_password"]
+    confirm_password = request.form["confirm_password"]
+
+    # Check current password
+    if not current_user.check_password(current_password):
+        error = "Current password is incorrect."
+        return render_template("change_password.html", error=error)
+
+    # Check new passwords match
+    if new_password != confirm_password:
+        error = "New passwords do not match."
+        return render_template("change_password.html", error=error)
+
+    # Update password
+    current_user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+
+    flash("Password successfully changed.", "success")
+    return redirect(url_for('index'))
+
+@app.route("/login/", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        return render_template("login_page.html", error=False)
+
+    username = request.form["username"]
+    password = request.form["password"]
+
+    user = load_user(username)
+    if user is None:
+        return render_template("login_page.html", error=True)
+
+    if not user.check_password(password):
+        return render_template("login_page.html", error=True)
+
+    print("login successful")
+    login_user(user)
+    return redirect(url_for('index'))
+
+
+@app.route("/logout/")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+                                        </code></pre>
+                                        <h4>main_page.html</h4>
+										<pre><code>&lt;!DOCTYPE HTML&gt;&lt;html&gt;
+    &lt;head&gt;
+        &lt;meta charset="utf-8"&gt;
+        &lt;meta http-equiv="X-UA-Compatible" content="IE=edge">
+        &lt;meta name="viewport" content="width=device-width, initial-scale=1.0">
+        &lt;link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0v4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        &lt;link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" integrity="sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
+        &lt;title>NM - Comments Page&lt;/title>
+    &lt;/head>
+
+    &lt;body  style="background-color:lightCyan">
+        &lt;nav class="navbar navbar-inverse" style="background-color:darkCyan; border-color:darkCyan">
+          &lt;div class="container">
+            &lt;div class="navbar-header" >
+              &lt;button style="border-color:white" type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                &lt;span class="sr-only">Toggle navigation&lt;/span>
+                &lt;span class="icon-bar">&lt;/span>
+                &lt;span class="icon-bar">&lt;/span>
+                &lt;span class="icon-bar">&lt;/span>
+              &lt;/button>
+              &lt;a class="navbar-brand" href="#" style="color:white; font-size:25px">&lt;b>Feel free to get in touch!&lt;/b>&lt;/a>
+            &lt;/div>
+            &lt;ul class="nav navbar-nav navbar-right">
+                {% if current_user.is_authenticated %}
+                    &lt;li>&lt;a href="{{ url_for('change_password') }}" style="color:lightCyan">Update Password&lt;/a>&lt;/li>
+                    &lt;li>&lt;a href="{{ url_for('logout') }}" style="color:lightCyan">Log Out&lt;/a>&lt;/li>
+                    &lt;li>&lt;a href="https://www.linkedin.com/in/noemi-m-b122084/" target="_blank" aria-label="LinkedIn Profile" style="color:lightCyan">&lt;i class="fab fa-linkedin">&lt;/i>&lt;/a>&lt;/li>
+                {% else %}
+                    &lt;li>&lt;a href="{{ url_for('login')}}" style="color:lightCyan">Log in&lt;/a>&lt;/li>
+                    &lt;li>&lt;a href="{{ url_for('signup')}}" style="color:lightCyan">Sign Up</a></li>
+                    &lt;li>&lt;a href="https://www.linkedin.com/in/noemi-m-b122084/" target="_blank" aria-label="LinkedIn Profile" style="color:lightCyan">&lt;i class="fab fa-linkedin">&lt;/i>&lt;/a>&lt;/li>
+                {% endif %}
+
+            &lt;/ul>
+         &lt;/div>
+        &lt;/nav>
+
+        &lt;div class="container" style="color:darkCyan">
+
+            {% for comment in comments %}
+                &lt;div class="row" style="margin-bottom:lex; indent-text=30px">
+                    &lt;div>
+                        &lt;b>{{ comment.content }}&lt;/b>
+                    &lt;/div>
+
+                    &lt;div style="indent-text=30px">
+                        &lt;small>
+                            Posted
+                            {% if comment.posted %}
+                                {{ comment.posted.strftime("%A, %d %B %Y at %H:%M")}}
+                            {% else %}
+                                at an unknown time
+                            {% endif %}
+                            by
+                            {% if comment.commenter %}
+                                {{ comment.commenter.username }}
+                            {% else %}
+                                anonymous
+                            {% endif %}
+                        &lt;/small>
+                    &lt;/div>
+                &lt;/div>
+                &lt;table>
+                    &lt;hr style="border-color:darkCyan">
+                    &lt;tr style="border-bottom:1px">&lt;/tr>
+                &lt;/table>
+            {% endfor %}
+
+            {% if current_user.is_authenticated %}
+                &lt;div class="row">
+                    &lt;form action="." method="POST">
+                        &lt;textarea class="form-control" name="contents" placeholder="Enter a comment" style="color:darkCyan; border-color:white">&lt;/textarea>
+                        &lt;input type="submit" class="btn btn-success" value="Post comment" style="background-color:darkCyan; border-color:darkCyan">
+                    &lt;/form>
+                &lt;/div>
+            {% endif %}
+
+        &lt;/div>
+
+    &lt;/body>
+&lt;/html></code></pre>
+									</section>
+									<section>
+										<h3 class="major">Images</h3>
+										<div class="box alt">
+											<div class="row gtr-uniform">
+												<div class="col-12"><span class="image fit"><img src="images/main_page.png" alt="" /></span></div>
+												<div class="col-6"><span class="image fit"><img src="images/login.png" alt="" /></span></div>
+												<div class="col-6"><span class="image fit"><img src="images/SignIn.png" alt="" /></span></div>
+												<div class="col-6"><span class="image fit"><img src="images/UpdatePassword.png" alt="" /></span></div>
+												<div class="col-6"><span class="image fit"><img src="images/LoggedInUserCommentBox.png" alt="" /></span></div>
+											</div>
+										</div>
+                                    </section>
+
+								</div>
+							</div>
+
+					</section>
+
+				<!-- Footer -->
+					<section id="footer">
+						<div class="inner">
+							<ul class="copyright">
+								<li>&copy; 2025 - Noemi Mateo - All rights reserved.</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+							</ul>
+						</div>
+					</section>
+
+			</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+	</body>
+</html>
