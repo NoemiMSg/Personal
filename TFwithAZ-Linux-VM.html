@@ -1,0 +1,194 @@
+<!DOCTYPE HTML>
+<!--
+	Solid State by HTML5 UP
+	html5up.net | @ajlkn
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html>
+	<head>
+		<title>Noemi Mateo's Terraform practice with Azure</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0v4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<!-- Page Wrapper -->
+			<div id="page-wrapper">
+
+				<!-- Header -->
+					<header id="header">
+						<ul class="icons">
+							<li><a href="https://www.linkedin.com/in/noemi-m-b122084/" class="icon" target="_blank"><i class="fa-brands fa-linkedin-in"></i></a></li>
+							<li><a href="https://github.com/NoemiMSg" class="icon brands fa-github" target="_blank"><span class="label">Github</span></a></li>
+							<li><a href="mailto:noemi.sato@gmail.com" class="icon brand fa-envelope" ><span class="label">Email Me</span></a></li>
+						</ul>
+						<nav>
+							<a href="#menu">Menu</a>
+						</nav>
+					</header>
+
+				<!-- Menu -->
+					<nav id="menu">
+						<div class="inner">
+							<h2>Menu</h2>
+							<ul class="links">
+								<li><a href="index.html">Home</a></li>
+								<li><a href="projects.html">Projects</a></li>
+								<li><a href="documents.html">Documents</a></li>
+							</ul>
+							<a href="#" class="close">Close</a>
+						</div>
+					</nav>
+
+				<!-- Wrapper -->
+					<section id="wrapper">
+						<header>
+							<div class="inner">
+								<h2>Using Terraform to provision a Linux VM</h2>
+								<p>I was able to provision a VM on Azure using Terraform.<br/>After the VM was provisioned, I established an SSH conection into the VM via a CLI.</p>
+                            </div>
+						</header>
+
+						<!-- Content -->
+							<div class="wrapper">
+								<div class="inner">
+
+									<section>
+										<h3 class="major">Terraform</h3>
+										<p><b>Terraform</b> is intuitive, and has a very useful <a href="https://registry.terraform.io/" target="_blank"><i>Terraform Registry</i></a> with extensive documentation and resources.</p>
+                                        <p>Below, the code to provision the Linux VM, the resource group, virtual network, subnet, network interface, and other settings needed for the VM.
+                                        <br/>All variables have been set as environmental variables, and/or GitHub Secrets variables.</p>
+                                        <h4>vm.tf</h4>
+										<pre><code>data "azurerm_platform_image" "openwebui" {
+  location  = azurerm_resource_group.openwebui.location
+  publisher = "Debian"
+  offer     = "debian-11"
+  sku       = "11"
+}
+
+data "cloudinit_config" "config" {
+  gzip          = true
+  base64_encode = true
+
+  part {
+    filename      = "init.sh"
+    content_type = "text/x-shellscript"
+
+    content = file("${path.module}/scrpts/provision_basic.sh")
+  }
+
+  part {
+    content_type = "text/cloud-config"
+    content = file("${path.module}/scrpts/cloud_init.yaml")
+  }
+}
+
+resource "azurerm_resource_group" "openwebui" {
+  name     = "example-resources"
+  location = "South East Asia"
+}
+
+resource "azurerm_virtual_network" "openwebui" {
+  name                = "example-network"
+  address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.openwebui.location
+  resource_group_name = azurerm_resource_group.openwebui.name
+}
+
+resource "azurerm_subnet" "openwebui" {
+  name                 = "internal"
+  resource_group_name  = azurerm_resource_group.openwebui.name
+  virtual_network_name = azurerm_virtual_network.openwebui.name
+  address_prefixes     = [cidrsubnet(tolist(azurerm_virtual_network.openwebui.address_space)[0], 8, 2)]
+}
+
+resource "azurerm_public_ip" "openwebui" {
+  name                = "openwebui-ip"
+  location            = azurerm_resource_group.openwebui.location
+  resource_group_name = azurerm_resource_group.openwebui.name
+  allocation_method   = "Static"
+}
+
+resource "azurerm_network_interface" "openwebui" {
+  name                = "example-nic"
+  location            = azurerm_resource_group.openwebui.location
+  resource_group_name = azurerm_resource_group.openwebui.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.openwebui.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.openwebui.id
+  }
+}
+
+resource "azurerm_linux_virtual_machine" "openwebui" {
+  name                = "example-machine"
+  resource_group_name = azurerm_resource_group.openwebui.name
+  location            = azurerm_resource_group.openwebui.location
+  size                = "Standard_A2_v2"
+  admin_username      = "openwebui"
+  network_interface_ids = [
+    azurerm_network_interface.openwebui.id,
+  ]
+
+  admin_ssh_key {
+    username   = "openwebui"
+    public_key = file("~/.ssh/id_ed25519.pub")
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  source_image_reference {
+    publisher = data.azurerm_platform_image.openwebui.publisher
+    offer     = data.azurerm_platform_image.openwebui.offer
+    sku       = data.azurerm_platform_image.openwebui.sku
+    version   = data.azurerm_platform_image.openwebui.version
+  }
+}</code></pre>
+									</section>
+                                    <section>
+										<h3 class="major">Images</h3>
+                                        <div class="box alt">
+											<div class="row gtr-uniform">
+												<div class="col-12"><span class="image fit"><img src="images/AzureRG.png" alt="" /></span></div>
+												<div class="col-6"><span class="image fit"><img src="images/output.tf.png" alt="" /></span></div>
+												<div class="col-6"><span class="image fit"><img src="images/IPaddress.png" alt="" /></span></div>
+												<div class="col-6"><span class="image fit"><img src="images/sshPort22.png" alt="" /></span></div>
+												<div class="col-6"><span class="image fit"><img src="images/ConnectedViaSSH.png" alt="" /></span></div>
+											</div>
+										</div>
+									</section>
+
+								</div>
+							</div>
+
+					</section>
+
+				<!-- Footer -->
+					<section id="footer">
+						<div class="inner">
+                            <ul class="copyright">
+								<li>&copy; 2025 - Noemi Mateo - All rights reserved.</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+							</ul>
+						</div>
+					</section>
+
+			</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+	</body>
+</html>
