@@ -1,10 +1,13 @@
-# My Personal Page on GitHub Pages
+My Personal Page on GitHub Pages
 
-## The repository with all the files also contains a .yml file to deploy the static content. \
+The repository with all the files also contains a .yml file to deploy the static content. \
 Every change to the main branch will trigger an automatic deploy with the updated content.
 
-## Using HTML5 Free Template as base
-###Solid State by HTML5 UP
+Using HTML5 Free Template as base
+
+
+
+Solid State by HTML5 UP
 html5up.net | @ajlkn
 Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
 
